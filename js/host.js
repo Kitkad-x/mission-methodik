@@ -147,7 +147,6 @@
   }
   function startBlock(id) {
     G.cur = id; G.rounds = G.blocks[id]; G.idx = -1;
-    show("#s-game"); renderTrack(); clearQ();
     nextRound();
   }
   function blockDone() {
@@ -216,117 +215,149 @@
 
   /* ---------- Countdown & Overlays ---------- */
   function overlay(html, btnLabel, onClose) {
+    $("#ov-card").classList.remove("wide");
     $("#ov-card").innerHTML = html + (btnLabel ? `<div><button class="btn green" id="ov-btn">${btnLabel}</button></div>` : "");
     $("#overlay").classList.remove("hidden");
     if (btnLabel) $("#ov-btn").addEventListener("click", () => { SFX.click(); hideOverlay(); onClose && onClose(); });
   }
   function hideOverlay() { $("#overlay").classList.add("hidden"); }
 
-  function countdown(done) {
-    show("#s-game"); renderTrack(); clearQ();
-    let n = 3;
-    const step = () => {
-      if (n === 0) { hideOverlay(); SFX.whoosh(); done(); return; }
-      overlay(`<div class="countdown">${n}</div><p class="small">Triebwerke zünden …</p>`);
-      SFX.tick(); n--; setTimeout(step, 800);
-    };
-    step();
-  }
-
-  /* ---------- Runden-Ablauf ---------- */
+  /* ---------- Runden-Ablauf ----------
+     Ablauf pro Runde: (Planet-Intro) → Rundentyp-Karte → [Einsätze] → Frage → [Karten hoch: Antworten eintragen] → Auflösung mit Erklärung → Rennstand */
   const R = () => G.rounds[G.idx];
 
   function nextRound() {
-    stopTimer();
+    stopTimer(); hideOverlay();
     G.idx++;
     if (G.idx >= G.rounds.length) return blockDone();
     G.roundNo++;
-    G.answers = {}; G.bets = {}; G.pAnswers = {}; G.pBets = {};
+    G.answers = {}; G.bets = {}; G.pAnswers = {}; G.pBets = {}; G.lastRes = null;
     G.crews.forEach((c) => (c.active = {}));
     G.double = G.nextDouble; G.nextDouble = false;
     const r = R();
     if (r.q.typ === "duell") {
-      const n = G.crews.length;
-      const a = (2 * G.duelCount) % n; let b = (a + 1) % n;
-      G.duel = [a, b]; G.duelCount++;
+      const n = G.crews.length, a = (2 * G.duelCount) % n;
+      G.duel = [a, (a + 1) % n]; G.duelCount++;
     } else G.duel = null;
-    renderTop(); clearQ(); renderTrack();
+    show("#s-game"); renderTop(); clearQ(); renderCrewbar();
     if (r.first) {
       const p = r.planet;
-      phase("intro");
-      SFX.whoosh();
+      phase("intro"); SFX.whoosh();
       overlay(p.id === "finale"
-        ? `<img src="assets/astronaut.png" alt=""><h2>Finale: Landung!</h2><p>Letzte Chance. Jede Crew setzt so viele Kristalle, wie sie will.</p>`
-        : `<img src="${p.bild}" alt=""><h2>${esc(p.name)}</h2><p>Termin ${p.termin}: ${esc(p.titel)}</p><p class="small">${p.status === "entwurf" ? "" : "5 Runden"}</p>`,
-        "Landen", () => startRoundBody());
-    } else startRoundBody();
+        ? `<img src="assets/astronaut.png" alt=""><h2>Finale: Landung!</h2><p>Letzte Frage. Jede Crew setzt so viele Kristalle, wie sie will.</p>`
+        : `<img src="${p.bild}" alt=""><h2>${esc(p.name)}</h2><p>Termin ${p.termin}: ${esc(p.titel)}</p><p class="small">${G.rounds.length} Runden</p>`,
+        "Landen", () => typeSplash());
+    } else typeSplash();
   }
 
-  function startRoundBody() {
-    const r = R();
-    if (r.q.typ === "wette" || r.q.typ === "finale") phaseBet(); else phaseQuestion();
+  function typeSplash() {
+    const r = R(), t = TYPEN[r.q.typ];
+    phase("splash");
+    const duel = G.duel ? `<p class="duel-line"><b style="color:${CREW_COLORS[G.duel[0]]}">${esc(G.crews[G.duel[0]].name)}</b> ⚔ <b style="color:${CREW_COLORS[G.duel[1]]}">${esc(G.crews[G.duel[1]].name)}</b></p><p class="small">Alle anderen sind Funkkontrolle: Liegen beide falsch, holen sie mit der richtigen Antwort +1.</p>` : "";
+    overlay(`<div class="splash-ico">${t.icon}</div><h2>${esc(r.q.art || t.name)}</h2>${duel}<p>${esc(t.info)}${G.double ? "<br><b>☀️ Sonnensturm: Diese Runde zählt doppelt!</b>" : ""}</p>`, "Los ▶", () => {
+      if (r.q.typ === "wette" || r.q.typ === "finale") phaseBet(); else phaseQuestion();
+    });
   }
 
   function phase(p) { G.phase = p; updateNextBtn(); }
 
   function updateNextBtn() {
     const b = $("#btn-next");
-    const L = { intro: "Los ▶", bet: "Frage zeigen ▶", question: "Auflösen ▶", reveal: G.idx + 1 >= G.rounds.length ? (G.cur === "finale" ? "Siegerehrung ▶" : "Zur Sternenkarte ▶") : "Nächste Runde ▶" };
+    const L = { bet: G.mode === "beamer" ? "Einsätze eintragen ▶" : "Frage zeigen ▶", question: G.mode === "beamer" ? "Karten hoch! ▶" : "Auflösen ▶", reveal: "Rennstand ▶" };
     b.textContent = L[G.phase] || "Weiter ▶";
+    b.classList.toggle("hidden", !L[G.phase]);
   }
 
   function renderTop() {
     const r = R(), t = TYPEN[r.q.typ];
     $("#tb-planet").src = r.planet.bild;
-    $("#tb-termin").textContent = r.planet.termin ? `Termin ${r.planet.termin}` : "Finale";
-    $("#tb-title").textContent = r.planet.id === "finale" ? "Landung" : r.planet.name + " · " + r.planet.titel;
-    $("#tb-type").textContent = `${t.icon} ${r.q.art || t.name}${G.double ? " · ×2 Sonnensturm" : ""}`;
-    $("#tb-round").textContent = `Runde ${G.idx + 1} / ${G.rounds.length}`;
-    $("#journey").innerHTML = G.journey.map((p) => `<img src="${p.bild}" class="${p.id === G.cur ? "now" : G.done[p.id] ? "done" : ""}" alt="">`).join("");
+    $("#tb-title").textContent = r.planet.id === "finale" ? "Finale" : `${r.planet.name} · Termin ${r.planet.termin}`;
+    $("#tb-type").innerHTML = `${t.icon} ${esc(r.q.art || t.name)}${G.double ? " <b>×2</b>" : ""}`;
+    $("#tb-round").textContent = `Runde ${G.idx + 1}/${G.rounds.length}`;
     $("#timer-s").textContent = t.zeit;
   }
 
   function clearQ() {
     $("#qtext").textContent = ""; $("#opts").innerHTML = ""; $("#visual").classList.add("hidden");
-    $("#postit").classList.add("hidden"); $("#side-info").innerHTML = ""; $("#side-info").classList.remove("hidden");
-    $("#duel-banner").classList.add("hidden");
+    $("#postit").classList.add("hidden"); $("#g-body").classList.remove("reveal", "with-visual"); $("#bet-info").classList.add("hidden");
   }
+
+  /* ---------- Crew-Leiste unten ---------- */
+  function renderCrewbar() {
+    $("#crewbar").innerHTML = G.crews.map((c, i) => {
+      const inDuel = G.duel && G.duel.includes(i), res = G.lastRes && G.lastRes[i];
+      let status = "";
+      if (G.phase === "question" && G.mode === "online") { const st = onlineCrewStatus(i); status = st.done ? "✓" : `${st.text.split(" ")[0]}`; }
+      if (G.phase === "bet") status = `Einsatz ${G.bets[i] ?? 0}`;
+      if (res && (res.answered || res.delta)) status = `${res.letter} ${res.correct ? "✓" : "✗"}`;
+      const jk = (k, ico) => (c.active[k] ? `<span class="jk-on">${ico}</span>` : c[k] ? `<span class="jk-av">${ico}</span>` : "");
+      return `<div class="cchip ${inDuel ? "duel" : ""} ${G.duel && !inDuel ? "dim" : ""} ${res ? (res.correct ? "ok" : res.answered ? "bad" : "") : ""}" style="--c:${CREW_COLORS[i]}">
+        <span class="cc-name">${inDuel ? "⚔ " : ""}${esc(c.name)}</span>
+        <span class="cc-fuel"><img src="assets/kristall.png" alt="">${c.fuel}</span>
+        <span class="cc-st">${status}</span><span class="cc-jk">${jk("shield", "🛡")}${jk("turbo", "⚡")}</span></div>`;
+    }).join("");
+  }
+
+  /* ---------- Eingabe-Panel (Beamer-Modus) ---------- */
+  function panel(kind) {
+    const r = R();
+    const rows = G.crews.map((c, i) => {
+      const inDuel = G.duel && G.duel.includes(i);
+      let btns = "";
+      if (kind === "bet") {
+        const mx = maxBet(i);
+        const vals = r.q.typ === "finale" ? [...new Set([0, Math.floor(mx / 3), Math.floor((2 * mx) / 3), mx])] : [0, 1, 2, 3];
+        btns = vals.map((v) => `<button class="pb bet ${(G.bets[i] ?? 0) === v ? "sel" : ""}" data-b="${v}" data-i="${i}">${v}</button>`).join("");
+      } else {
+        btns = LETTERS.map((L, p) => `<button class="pb ${G.answers[i] === p ? "sel" : ""}" style="background:${OPT_COLORS[p]}" data-a="${p}" data-i="${i}">${L}</button>`).join("");
+      }
+      const jk = (k, ico, lab) => { const used = !c[k] && !c.active[k]; return `<button class="pj ${c.active[k] ? "on" : ""}" data-j="${k}" data-i="${i}" ${used ? "disabled" : ""} title="${lab}">${ico}</button>`; };
+      return `<div class="prow ${G.duel ? (inDuel ? "duel" : "spect") : ""}"><span class="pname" style="border-color:${CREW_COLORS[i]}">${esc(c.name)}${G.duel ? `<small>${inDuel ? "Duell" : "Funkkontrolle"}</small>` : ""}</span>
+        <span class="pbtns">${btns}</span><span class="pjk">${jk("shield", "🛡", "Schild")}${jk("turbo", "⚡", "Turbo")}</span></div>`;
+    }).join("");
+    const head = kind === "bet" ? `<h2>Einsätze</h2><p class="small">Jede Crew sagt ihren Einsatz an. Joker jetzt ansagen: 🛡 kein Verlust · ⚡ Gewinn ×2</p>`
+      : `<h2>Karten hoch!</h2><p class="small">Klicke für jede Crew den Buchstaben auf ihrer Karte an. Joker: 🛡 kein Verlust · ⚡ Gewinn ×2</p>`;
+    overlay(`<div class="pcard">${head}<div class="prows">${rows}</div></div>`, kind === "bet" ? "Frage zeigen ▶" : "Auflösen ▶", () => (kind === "bet" ? phaseQuestion() : reveal()));
+    $("#ov-card").classList.add("wide");
+    $$("#ov-card .pb[data-a]").forEach((b) => b.addEventListener("click", () => { const i = +b.dataset.i, p = +b.dataset.a; G.answers[i] = G.answers[i] === p ? undefined : p; SFX.click(); panelRefresh(kind); }));
+    $$("#ov-card .pb[data-b]").forEach((b) => b.addEventListener("click", () => { G.bets[+b.dataset.i] = +b.dataset.b; SFX.click(); panelRefresh(kind); }));
+    $$("#ov-card .pj").forEach((b) => b.addEventListener("click", () => { toggleJoker(+b.dataset.i, b.dataset.j); panelRefresh(kind); }));
+  }
+  function panelRefresh(kind) { panel(kind); }
 
   /* --- Wette --- */
   function maxBet(ci) { return R().q.typ === "finale" ? Math.max(3, G.crews[ci].fuel) : 3; }
   function phaseBet() {
     phase("bet");
     const r = R();
-    $("#qtext").innerHTML = `${TYPEN[r.q.typ].icon} ${esc(TYPEN[r.q.typ].name)}: Wie sicher seid ihr beim Thema <b>«${esc(r.planet.id === "finale" ? "Zusammenhang und Wirkung" : r.planet.titel)}»</b>?`;
-    $("#side-info").innerHTML = `${esc(TYPEN[r.q.typ].info)}.<br><br>${G.mode === "beamer" ? "Jede Crew sagt ihren Einsatz an – du klickst ihn in der Spur ein." : "Die Crews wählen ihren Einsatz auf dem Handy."}<br><br>Joker jetzt aktivieren: 🛡 Schild (kein Verlust) · ⚡ Turbo (Gewinn ×2)`;
     G.crews.forEach((c, i) => (G.bets[i] = 0));
-    renderTrack();
+    $("#qtext").innerHTML = `Wie sicher seid ihr beim Thema <b>«${esc(r.planet.id === "finale" ? "Zusammenhang und Wirkung" : r.planet.titel)}»</b>?`;
+    $("#bet-info").classList.remove("hidden");
+    $("#bet-info").innerHTML = r.q.typ === "finale" ? "Setzt 0 bis alle eure Kristalle.<br>Richtig: Einsatz dazu · Falsch: Einsatz weg" : "Setzt 0, 1, 2 oder 3 Kristalle.<br>Richtig: Einsatz dazu · Falsch: Einsatz weg";
+    renderCrewbar();
     publish();
+    if (G.mode === "beamer") panel("bet");
   }
 
   /* --- Frage --- */
   function phaseQuestion() {
-    phase("question");
+    hideOverlay(); phase("question");
     const r = R(), q = r.q;
-    if (G.duel) {
-      $("#duel-banner").classList.remove("hidden");
-      $("#duel-banner").innerHTML = `☄️ ${esc(G.crews[G.duel[0]].name)} gegen ${esc(G.crews[G.duel[1]].name)} – alle anderen können als Funkkontrolle stehlen`;
-    }
+    $("#bet-info").classList.add("hidden");
     $("#qtext").textContent = q.q;
-    if (q.visual) { $("#visual").classList.remove("hidden"); $("#visual").innerHTML = visualSVG(q.visual); }
-    const opts = $("#opts");
-    opts.classList.toggle("one-col", !!q.visual || q.opts.some((o) => o.length > 60));
-    opts.innerHTML = r.order.map((oi, p) => `<div class="opt" data-p="${p}"><span class="L" style="background:${OPT_COLORS[p]}">${LETTERS[p]}</span><span>${esc(q.opts[oi])}</span><span class="who"></span></div>`).join("");
-    $("#side-info").innerHTML = `<b>${esc(TYPEN[q.typ].name)}</b><br>${esc(TYPEN[q.typ].info)}.` +
-      (G.mode === "beamer" ? `<br><br>Nach Ablauf der Zeit: <b>Karten hoch!</b> Dann die Antworten in den Spuren einklicken.` : `<br><br>Antwortet jetzt auf dem Handy!`);
-    renderTrack();
+    const body = $("#g-body");
+    if (q.visual) { body.classList.add("with-visual"); $("#visual").classList.remove("hidden"); $("#visual").innerHTML = visualSVG(q.visual); }
+    const long = !!q.visual || q.opts.some((o) => o.length > 55);
+    $("#opts").classList.toggle("one-col", long);
+    $("#opts").innerHTML = r.order.map((oi, p) => `<div class="opt" data-p="${p}"><span class="L" style="background:${OPT_COLORS[p]}">${LETTERS[p]}</span><span class="ot">${esc(q.opts[oi])}</span><span class="who"></span></div>`).join("");
+    renderCrewbar();
     startTimer(TYPEN[q.typ].zeit);
     publish();
   }
 
   /* --- Timer --- */
   function startTimer(sec) {
-    stopTimer(); G.tLeft = sec; G.paused = false; G.qStart = Date.now();
+    stopTimer(); G.tLeft = sec; G.paused = false;
     $("#timer-s").textContent = sec; $("#timer").classList.remove("low");
     G.timer = setInterval(() => {
       if (G.paused) return;
@@ -335,81 +366,21 @@
       if (G.tLeft <= 5 && G.tLeft > 0) { $("#timer").classList.add("low"); SFX.tick(); }
       if (G.tLeft <= 0) {
         stopTimer(); SFX.alarm();
-        if (G.mode === "beamer") { overlay(`<h2>Karten hoch!</h2><p>Zeigt eure Antwortkarte.</p>`, "OK", () => {}); }
+        if (G.mode === "beamer") { if (G.phase === "question") panel("answer"); }
         else setTimeout(() => G.phase === "question" && reveal(), 800);
       }
     }, 1000);
   }
   function stopTimer() { clearInterval(G.timer); G.timer = null; }
-  $("#btn-plus10").addEventListener("click", () => { if (G.timer || G.phase === "question") { G.tLeft += 10; if (!G.timer && G.phase === "question") startTimer(G.tLeft); $("#timer-s").textContent = G.tLeft; publish(); } });
+  $("#btn-plus10").addEventListener("click", () => { if (G.phase === "question") { G.tLeft = Math.max(0, G.tLeft) + 10; if (!G.timer) startTimer(G.tLeft); $("#timer-s").textContent = G.tLeft; publish(); } });
   $("#btn-pause").addEventListener("click", () => { G.paused = !G.paused; $("#btn-pause").textContent = G.paused ? "▶" : "⏸"; });
   $("#btn-sound").addEventListener("click", () => { $("#btn-sound").textContent = SFX.toggle() ? "🔊" : "🔇"; });
 
-  /* ---------- Spuren (Crews) ---------- */
-  function leader(i) { const m = Math.max(...G.crews.map((c) => c.fuel)); return m > 0 && G.crews[i].fuel === m; }
-  function scaleMax() { return Math.max(12, ...G.crews.map((c) => c.fuel)) * 1.08; }
-
-  function renderTrack() {
-    const tr = $("#track");
-    const r = G.idx >= 0 ? R() : null;
-    tr.innerHTML = G.crews.map((c, i) => {
-      const inDuel = G.duel && G.duel.includes(i);
-      return `<div class="lane ${inDuel ? "duel" : ""} ${G.duel && !inDuel ? "dim" : ""}" data-i="${i}">
-        <div class="lane-label"><span class="lane-flag" style="background:${CREW_COLORS[i]}"></span><span class="lane-name">${esc(c.name)}</span>
-          <span class="lane-fuel"><img src="assets/kristall.png" alt="">${c.fuel}</span></div>
-        <div class="lane-road"><div class="shuttle" style="left:${(c.fuel / scaleMax()) * 100}%"><img src="assets/${leader(i) ? "shuttle_gold" : "shuttle"}.png" alt=""></div></div>
-        <div class="lane-input">${laneControls(i)}</div>
-      </div>`;
-    }).join("");
-    bindLane();
-  }
-
-  function laneControls(i) {
-    const c = G.crews[i];
-    const jk = (k, ico, title) => {
-      const used = !c[k] && !c.active[k];
-      const can = G.phase === "bet" || G.phase === "question";
-      return `<button class="jk ${used ? "used" : ""} ${c.active[k] ? "active" : ""}" data-j="${k}" data-i="${i}" title="${title}" ${(!can || used) ? "disabled" : ""}>${ico}</button>`;
-    };
-    let h = jk("shield", "🛡", "Schild: kein Verlust in dieser Runde") + jk("turbo", "⚡", "Turbo: Gewinn ×2 in dieser Runde");
-    if (G.phase === "bet") {
-      const mx = maxBet(i), b = G.bets[i] ?? 0;
-      if (G.mode === "beamer") {
-        const vals = R().q.typ === "finale" ? [...new Set([0, Math.floor(mx / 3), Math.floor((2 * mx) / 3), mx])] : [0, 1, 2, 3].filter((v) => v <= mx);
-        h += vals.map((v) => `<button class="ib bet ${b === v ? "sel" : ""}" data-b="${v}" data-i="${i}">${v}</button>`).join("");
-      } else h += `<span class="pill">Einsatz: ${b}</span>`;
-    } else if (G.phase === "question") {
-      if (G.mode === "beamer") {
-        h += LETTERS.map((L, p) => `<button class="ib ${G.answers[i] === p ? "sel" : ""}" style="background:${OPT_COLORS[p]}" data-a="${p}" data-i="${i}">${L}</button>`).join("");
-      } else {
-        const st = onlineCrewStatus(i);
-        h += `<span class="pill ${st.done ? "ok" : ""}">${st.text}</span>`;
-      }
-    } else if (G.phase === "reveal" && G.lastRes) {
-      const res = G.lastRes[i];
-      if (res && res.answered) h += `<span class="pill ${res.correct ? "ok" : "bad"}">${res.letter} ${res.correct ? "✓" : "✗"}</span>`;
-      else if (res && res.part) h += `<span class="pill">–</span>`;
-    }
-    return h;
-  }
-
-  function bindLane() {
-    $$(".ib[data-a]").forEach((b) => b.addEventListener("click", () => {
-      const i = +b.dataset.i, p = +b.dataset.a;
-      G.answers[i] = G.answers[i] === p ? undefined : p; SFX.click(); refreshLane(i);
-    }));
-    $$(".ib[data-b]").forEach((b) => b.addEventListener("click", () => { G.bets[+b.dataset.i] = +b.dataset.b; SFX.click(); refreshLane(+b.dataset.i); }));
-    $$(".jk").forEach((b) => b.addEventListener("click", () => toggleJoker(+b.dataset.i, b.dataset.j)));
-  }
-  function refreshLane(i) {
-    const lane = $(`.lane[data-i="${i}"] .lane-input`);
-    if (lane) { lane.innerHTML = laneControls(i); bindLane(); }
-  }
   function toggleJoker(i, k) {
     const c = G.crews[i];
     if (c.active[k]) { c.active[k] = false; c[k] = true; }
     else if (c[k]) { c.active[k] = true; c[k] = false; SFX.right(); }
-    refreshLane(i); publish();
+    renderCrewbar(); publish();
   }
 
   /* ---------- Auswertung ---------- */
@@ -422,10 +393,10 @@
     const res = {};
     for (let i = 0; i < n; i++) {
       const a = G.answers[i];
-      res[i] = { answered: a !== undefined && a !== null, correct: a === cp, letter: a != null ? LETTERS[a] : "–", delta: 0, part: true, hit: false };
+      res[i] = { answered: a !== undefined && a !== null, correct: a === cp, letter: a != null ? LETTERS[a] : "–", delta: 0, hit: false };
     }
-    const gain = (i, v) => { const c = G.crews[i]; res[i].delta += v * mult * (c.active.turbo ? 2 : 1); };
-    const loss = (i, v) => { if (!G.crews[i].active.shield) res[i].delta -= v; else res[i].shielded = true; };
+    const gain = (i, v) => { res[i].delta += v * mult * (G.crews[i].active.turbo ? 2 : 1); };
+    const loss = (i, v) => { if (!G.crews[i].active.shield) res[i].delta -= v; else if (v) res[i].shielded = true; };
 
     if (q.typ === "funk" || q.typ === "mission") {
       const pts = q.typ === "funk" ? 2 : 3;
@@ -440,84 +411,87 @@
       else if (cb && !ca) { gain(b, 2); loss(a, 1); res[a].hit = true; }
       else if (ca && cb) { gain(a, 1); gain(b, 1); }
       else for (let i = 0; i < n; i++) if (i !== a && i !== b && res[i].correct) { gain(i, 1); res[i].steal = true; }
-      for (let i = 0; i < n; i++) if (i !== a && i !== b && !res[i].steal) res[i].part = res[i].answered;
-    } else { // wette, finale
+    } else {
       for (let i = 0; i < n; i++) {
         const bet = Math.min(G.bets[i] || 0, maxBet(i));
         res[i].bet = bet;
         if (res[i].correct) gain(i, bet); else loss(i, bet);
       }
     }
-    const before = G.crews.map((c) => c.fuel);
+    G.prevFuel = G.crews.map((c) => c.fuel);
     G.crews.forEach((c, i) => (c.fuel = Math.max(0, c.fuel + res[i].delta)));
     G.lastRes = res;
     phase("reveal");
 
-    // Optionen markieren
     $$(".opt").forEach((el) => {
       const p = +el.dataset.p;
       el.classList.add(p === cp ? "right" : "wrong");
-      const who = Object.keys(res).filter((i) => G.answers[i] === p).map((i) => `<i style="background:${CREW_COLORS[i]}"></i>`).join("");
-      el.querySelector(".who").innerHTML = who;
+      el.querySelector(".who").innerHTML = Object.keys(res).filter((i) => G.answers[i] === p).map((i) => `<i style="background:${CREW_COLORS[i]}" title="${esc(G.crews[i].name)}"></i>`).join("");
     });
-    // Post-it
-    $("#side-info").classList.add("hidden");
+    $("#g-body").classList.add("reveal");
+    $("#opts").classList.add("one-col");
     $("#postit").classList.remove("hidden");
     $("#postit-h").textContent = `Richtig: ${LETTERS[cp]}`;
     $("#postit-t").innerHTML = esc(q.expl) + (r.planet.termin ? `<span class="ref">→ Termin ${r.planet.termin}: ${esc(r.planet.titel)}</span>` : "");
+    renderCrewbar();
+    Object.values(res).some((x) => x.correct) ? SFX.right() : SFX.wrong();
 
-    renderTrack();
-    animateResults(res);
-    const anyRight = Object.values(res).some((x) => x.correct);
-    anyRight ? SFX.right() : SFX.wrong();
-    if (Object.values(res).some((x) => x.hit)) setTimeout(SFX.boom, 500);
-
-    // Protokoll
     const ts = new Date().toISOString();
     for (let i = 0; i < n; i++) {
       G.log.push({ ebene: "crew", zeit: ts, modus: G.mode, raum: G.room || "", runde: G.roundNo, frage_id: q.id, planet: r.planet.name, termin: r.planet.termin, typ: q.typ,
         crew: G.crews[i].name, pseudonym: "", antwort: res[i].letter, antwort_original: G.answers[i] != null ? r.order[G.answers[i]] : "", richtig: res[i].answered ? (res[i].correct ? 1 : 0) : "",
-        einsatz: res[i].bet ?? "", joker: Object.keys(G.crews[i].active).filter((k) => G.crews[i].active[k]).join("+"), reaktionszeit_ms: "", kristalle_vorher: before[i], kristalle_nachher: G.crews[i].fuel });
+        einsatz: res[i].bet ?? "", joker: Object.keys(G.crews[i].active).filter((k) => G.crews[i].active[k]).join("+"), reaktionszeit_ms: "", kristalle_vorher: G.prevFuel[i], kristalle_nachher: G.crews[i].fuel });
     }
     if (G.mode === "online") logPlayers(r, cp, ts);
     publish({ reveal: true, cp, res });
   }
 
-  function animateResults(res) {
-    Object.entries(res).forEach(([i, x]) => {
-      const lane = $(`.lane[data-i="${i}"] .lane-road`);
-      if (!lane) return;
-      const sh = lane.querySelector(".shuttle");
-      const left = parseFloat(sh.style.left);
-      if (x.delta) {
-        const d = document.createElement("div");
-        d.className = "delta " + (x.delta > 0 ? "plus" : "minus");
-        d.style.left = `calc(${left}% + 120px)`;
-        d.textContent = (x.delta > 0 ? "+" : "") + x.delta + (x.tempo ? " ⚡Tempo" : "") + (x.steal ? " (gestohlen)" : "");
-        lane.appendChild(d);
-      } else if (x.shielded) {
-        const d = document.createElement("div"); d.className = "delta plus"; d.style.left = `calc(${left}% + 120px)`; d.textContent = "🛡 geschützt"; lane.appendChild(d);
-      }
-      if (x.hit) {
-        const a = document.createElement("img"); a.src = "assets/asteroid.png"; a.className = "asteroid"; lane.appendChild(a);
-        requestAnimationFrame(() => requestAnimationFrame(() => (a.style.left = left + "%")));
-        const b = document.createElement("img"); b.src = "assets/explosion.png"; b.className = "boom"; b.style.left = left + "%";
-        setTimeout(() => { a.remove(); lane.appendChild(b); }, 650);
-      }
-    });
+  /* ---------- Rennstand ---------- */
+  function leader(i) { const m = Math.max(...G.crews.map((c) => c.fuel)); return m > 0 && G.crews[i].fuel === m; }
+  function showRace() {
+    phase("race");
+    const res = G.lastRes || {}, prev = G.prevFuel || G.crews.map((c) => c.fuel);
+    const scale = Math.max(12, ...G.crews.map((c) => c.fuel), ...prev) * 1.08;
+    $("#track").innerHTML = G.crews.map((c, i) => `<div class="lane" data-i="${i}">
+        <div class="lane-label"><span class="lane-flag" style="background:${CREW_COLORS[i]}"></span><span class="lane-name">${esc(c.name)}</span>
+          <span class="lane-fuel"><img src="assets/kristall.png" alt=""><span class="fv">${prev[i]}</span></span></div>
+        <div class="lane-road"><div class="shuttle" style="left:${(prev[i] / scale) * 100}%"><img src="assets/${leader(i) ? "shuttle_gold" : "shuttle"}.png" alt=""></div></div>
+      </div>`).join("");
+    const last = G.idx + 1 >= G.rounds.length;
+    $("#btn-race-next").textContent = last ? (G.cur === "finale" ? "Siegerehrung ▶" : "Zur Sternenkarte ▶") : "Nächste Runde ▶";
+    show("#s-race");
+    setTimeout(() => {
+      G.crews.forEach((c, i) => {
+        const lane = $(`.lane[data-i="${i}"]`), road = lane.querySelector(".lane-road"), sh = road.querySelector(".shuttle"), x = res[i] || {};
+        const left = (c.fuel / scale) * 100;
+        sh.style.left = left + "%"; lane.querySelector(".fv").textContent = c.fuel;
+        const txt = x.delta ? (x.delta > 0 ? "+" : "") + x.delta + (x.tempo ? " ⚡ Tempo" : "") + (x.steal ? " gestohlen" : "") : x.shielded ? "🛡 geschützt" : "";
+        if (txt) { const d = document.createElement("div"); d.className = "delta " + (x.delta < 0 ? "minus" : "plus"); d.style.left = `calc(${left}% + 130px)`; d.textContent = txt; road.appendChild(d); }
+        if (x.hit) {
+          const a = document.createElement("img"); a.src = "assets/asteroid.png"; a.className = "asteroid"; road.appendChild(a);
+          requestAnimationFrame(() => requestAnimationFrame(() => (a.style.left = left + "%")));
+          setTimeout(() => { a.remove(); const b = document.createElement("img"); b.src = "assets/explosion.png"; b.className = "boom"; b.style.left = left + "%"; road.appendChild(b); SFX.boom(); }, 650);
+        }
+      });
+      SFX.whoosh();
+    }, 250);
   }
-
-  function afterReveal() { nextRound(); }
+  $("#btn-race-next").addEventListener("click", () => { SFX.click(); nextRound(); });
 
   $("#btn-next").addEventListener("click", () => { SFX.unlock(); SFX.click(); onNext(); });
   document.addEventListener("keydown", (e) => {
     if (e.target.tagName === "INPUT") return;
-    if (e.key === " " || e.key === "ArrowRight") { e.preventDefault(); if (!$("#overlay").classList.contains("hidden")) { const b = $("#ov-btn"); b && b.click(); } else if (!$("#s-game").classList.contains("hidden")) onNext(); else if (!$("#s-brief").classList.contains("hidden")) $("#brief-next").click(); }
+    if (e.key !== " " && e.key !== "ArrowRight") return;
+    e.preventDefault();
+    if (!$("#overlay").classList.contains("hidden")) { const b = $("#ov-btn"); b && b.click(); }
+    else if (!$("#s-game").classList.contains("hidden")) onNext();
+    else if (!$("#s-race").classList.contains("hidden")) $("#btn-race-next").click();
+    else if (!$("#s-brief").classList.contains("hidden")) $("#brief-next").click();
   });
   function onNext() {
-    if (G.phase === "bet") phaseQuestion();
-    else if (G.phase === "question") reveal();
-    else if (G.phase === "reveal") afterReveal();
+    if (G.phase === "bet") { if (G.mode === "beamer") panel("bet"); else phaseQuestion(); }
+    else if (G.phase === "question") { if (G.mode === "beamer") { stopTimer(); panel("answer"); } else reveal(); }
+    else if (G.phase === "reveal") showRace();
   }
 
   /* ---------- Visuals ---------- */
@@ -641,7 +615,7 @@
     G.crews.forEach((c, i) => {
       const vals = crewMembers(i).map(([u]) => G.pBets[u] && G.pBets[u].bet).filter((v) => v != null).sort((a, b) => a - b);
       if (vals.length) G.bets[i] = Math.min(maxBet(i), vals[Math.floor((vals.length - 1) / 2)]);
-      refreshLane(i);
+      renderCrewbar();
     });
   }
 
@@ -665,7 +639,7 @@
   }
   function onlineTick() {
     if (G.phase !== "question") return;
-    G.crews.forEach((c, i) => refreshLane(i));
+    renderCrewbar();
     const relevant = G.duel ? G.duel : G.crews.map((c, i) => i);
     const all = relevant.every((i) => { const a = crewAnswer(i); return !a.total || a.answered >= a.total; });
     const anyone = relevant.some((i) => crewAnswer(i).total);

@@ -97,38 +97,33 @@
     </div>
   </section>
 
-  <!-- ===== Spiel ===== -->
+  <!-- ===== Spiel: Frage ===== -->
   <section id="s-game" class="screen bg-board hidden">
-    <div class="topbar">
-      <div class="tb-left"><img id="tb-planet" src="" alt=""><div><div class="tb-termin" id="tb-termin"></div><div class="tb-title" id="tb-title"></div></div></div>
-      <div class="tb-mid"><div id="tb-type" class="type-badge"></div><div id="journey"></div></div>
-      <div class="tb-right"><div id="tb-round"></div><div class="timer" id="timer"><img src="assets/stoppuhr.png" alt=""><span id="timer-s">30</span></div></div>
-    </div>
-
-    <div class="qarea">
-      <div class="qpanel">
-        <div class="duel-banner hidden" id="duel-banner"></div>
-        <div class="qtext" id="qtext"></div>
-        <div class="qbody">
-          <div class="visual hidden" id="visual"></div>
-          <div class="opts" id="opts"></div>
-        </div>
-      </div>
-      <div class="side">
-        <div class="postit hidden" id="postit"><div class="postit-h" id="postit-h"></div><div class="postit-t" id="postit-t"></div></div>
-        <div class="side-info" id="side-info"></div>
+    <div class="g-top">
+      <div class="g-where"><img id="tb-planet" src="" alt=""><span id="tb-title"></span></div>
+      <div class="g-type" id="tb-type"></div>
+      <div class="g-right">
+        <span class="g-tools"><button class="tool btn-help" title="Bedienung">?</button><button class="tool" id="btn-sound" title="Ton">🔊</button><button class="tool" id="btn-plus10" title="+10 Sekunden">+10</button><button class="tool" id="btn-pause" title="Pause">⏸</button></span>
+        <span id="tb-round"></span>
+        <div class="timer" id="timer"><img src="assets/stoppuhr.png" alt=""><span id="timer-s">30</span></div>
       </div>
     </div>
+    <div class="g-q" id="qtext"></div>
+    <div class="g-body" id="g-body">
+      <div class="visual hidden" id="visual"></div>
+      <div class="opts" id="opts"></div>
+      <div class="bet-info hidden" id="bet-info"></div>
+      <div class="postit hidden" id="postit"><div class="postit-h" id="postit-h"></div><div class="postit-t" id="postit-t"></div></div>
+    </div>
+    <div class="crewbar" id="crewbar"></div>
+    <div class="controls"><button class="btn green" id="btn-next">Weiter ▶</button></div>
+  </section>
 
+  <!-- ===== Rennstand ===== -->
+  <section id="s-race" class="screen bg-board hidden">
+    <h2 class="chalk head">Rennstand</h2>
     <div class="track" id="track"></div>
-
-    <div class="controls">
-      <button class="btn small ghost btn-help" title="Bedienung">?</button>
-      <button class="btn small ghost" id="btn-sound" title="Ton an/aus">🔊</button>
-      <button class="btn small ghost" id="btn-plus10" title="+10 Sekunden">+10 s</button>
-      <button class="btn small ghost" id="btn-pause" title="Timer anhalten">⏸</button>
-      <button class="btn green" id="btn-next">Weiter ▶</button>
-    </div>
+    <div class="controls"><button class="btn green" id="btn-race-next">Nächste Runde ▶</button></div>
   </section>
 
   <!-- ===== Overlays ===== -->
