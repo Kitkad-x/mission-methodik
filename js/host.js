@@ -85,6 +85,7 @@
     G.amode = $('input[name=amode]:checked').value;
     G.research = G.mode === "online" && $("#opt-research").checked;
     G.events = $("#opt-events").checked;
+    G.auto = G.mode === "online" && $("#opt-auto").checked;
     G.crews = $$("#crew-names input").map((i, k) => ({ name: i.value.trim() || `Crew ${k + 1}`, fuel: 0, shield: true, turbo: true, active: {} }));
     buildBlocks(planets, $("#opt-finale").checked, $("#opt-shuffle").checked);
     G.idx = -1; G.roundNo = 0; G.duelCount = 0; G.log = []; G.double = false; G.nextDouble = false; G.blocksDone = 0; G.done = {};
@@ -143,7 +144,15 @@
     $("#btn-finale").classList.toggle("pulse", !open.length);
     $$(".map-planet:not(.done)").forEach((b) => b.addEventListener("click", () => { SFX.whoosh(); startBlock(b.dataset.id); }));
     show("#s-map");
-    publish({ map: true, chooser: ch.i, open });
+    publish({ map: true, chooser: ch.i, open, at: G.blocksDone });
+    if (G.auto) {
+      if (open.length) autoNext(35000, () => startBlock(open[Math.floor(Math.random() * open.length)]));
+      else autoNext(5000, () => (G.hasFinale ? startBlock("finale") : endGame()));
+    }
+  }
+  function onMapPick(v) {
+    if (G.phase !== "map" || !v || !G.chooser || v.crew !== G.chooser.i || v.at !== G.blocksDone) return;
+    if (G.blocks[v.id] && !G.done[v.id]) { SFX.whoosh(); startBlock(v.id); }
   }
   function startBlock(id) {
     G.cur = id; G.rounds = G.blocks[id]; G.idx = -1;
@@ -192,6 +201,7 @@
     $("#brief-dots").innerHTML = BRIEF.map((x, i) => `<i class="${i === bIdx ? "on" : ""}"></i>`).join("");
     $("#brief-prev").style.visibility = bIdx ? "visible" : "hidden";
     $("#brief-next").textContent = bIdx === BRIEF.length - 1 ? "Los geht's! 🚀" : "Weiter ▶";
+    if (G.auto) { clearTimeout(G.briefT); const at = bIdx; G.briefT = setTimeout(() => { if (bIdx === at && !$("#s-brief").classList.contains("hidden")) $("#brief-next").click(); }, 9000 * (window.__AUTOSCALE || 1)); }
   }
   $("#brief-prev").addEventListener("click", () => { if (bIdx > 0) { bIdx--; SFX.click(); drawBrief(); } });
   $("#brief-next").addEventListener("click", () => { SFX.click(); if (bIdx < BRIEF.length - 1) { bIdx++; drawBrief(); } else { SFX.whoosh(); bDone && bDone(); } });
@@ -208,17 +218,26 @@
       <tr><td>Sternenkarte</td><td>Planeten anklicken, den die führende Crew ansagt · «Finale» startet die Landung · «Spiel beenden» geht direkt zur Siegerehrung</td></tr>
       <tr><td>Siegerehrung</td><td>«Daten herunterladen (CSV)» speichert alle Antworten der Runden</td></tr>
       <tr><td><b>?</b></td><td>diese Hilfe · <b>📖</b> Briefing für die Crews nochmals zeigen</td></tr>
-    </table>`, "Schliessen", () => {});
+    </table>`, "Schliessen", () => {}, { noAuto: true });
   }
   $$(".btn-help").forEach((b) => b.addEventListener("click", () => { SFX.click(); helpOverlay(); }));
   $$(".btn-brief").forEach((b) => b.addEventListener("click", () => { SFX.click(); const back = G.phase === "map" ? "#s-map" : "#s-game"; briefing(() => show(back)); }));
 
   /* ---------- Countdown & Overlays ---------- */
-  function overlay(html, btnLabel, onClose) {
+  /* Autopilot: schaltet nach einer Wartezeit selbst weiter, aber nur, wenn sich inzwischen nichts geändert hat */
+  function autoNext(ms, fn) {
+    if (!G.auto) return;
+    const ph = G.phase, rn = G.roundNo, tok = G.ovTok;
+    clearTimeout(G.autoT);
+    G.autoT = setTimeout(() => { if (G.phase === ph && G.roundNo === rn && G.ovTok === tok) fn(); }, ms * (window.__AUTOSCALE || 1));
+  }
+  function overlay(html, btnLabel, onClose, opts = {}) {
+    G.ovTok = (G.ovTok || 0) + 1;
     $("#ov-card").classList.remove("wide");
     $("#ov-card").innerHTML = html + (btnLabel ? `<div><button class="btn green" id="ov-btn">${btnLabel}</button></div>` : "");
     $("#overlay").classList.remove("hidden");
     if (btnLabel) $("#ov-btn").addEventListener("click", () => { SFX.click(); hideOverlay(); onClose && onClose(); });
+    if (btnLabel && !opts.noAuto) autoNext(opts.wait || 5000, () => { const b = $("#ov-btn"); b && b.click(); });
   }
   function hideOverlay() { $("#overlay").classList.add("hidden"); }
 
@@ -337,6 +356,7 @@
     renderCrewbar();
     publish();
     if (G.mode === "beamer") panel("bet");
+    autoNext(20000, () => phaseQuestion());
   }
 
   /* --- Frage --- */
@@ -444,6 +464,7 @@
     }
     if (G.mode === "online") logPlayers(r, cp, ts);
     publish({ reveal: true, cp, res });
+    autoNext(15000, () => showRace());
   }
 
   /* ---------- Rennstand ---------- */
@@ -475,6 +496,7 @@
       });
       SFX.whoosh();
     }, 250);
+    autoNext(6000, () => nextRound());
   }
   $("#btn-race-next").addEventListener("click", () => { SFX.click(); nextRound(); });
 
@@ -492,36 +514,6 @@
     if (G.phase === "bet") { if (G.mode === "beamer") panel("bet"); else phaseQuestion(); }
     else if (G.phase === "question") { if (G.mode === "beamer") { stopTimer(); panel("answer"); } else reveal(); }
     else if (G.phase === "reveal") showRace();
-  }
-
-  /* ---------- Visuals ---------- */
-  function rng(seed) { let s = seed; return () => ((s = (s * 16807) % 2147483647) / 2147483647); }
-  function gauss(r) { let u = 0, v = 0; while (!u) u = r(); while (!v) v = r(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
-  function visualSVG(v) {
-    const W = 450, H = 400, m = 50;
-    const axis = `<line x1="${m}" y1="${H - m}" x2="${W - 15}" y2="${H - m}" stroke="#333" stroke-width="2"/><line x1="${m}" y1="15" x2="${m}" y2="${H - m}" stroke="#333" stroke-width="2"/>`;
-    if (v.kind === "scatter") {
-      const R1 = rng(4242), n = v.n || 40;
-      let x = Array.from({ length: n }, () => gauss(R1)), e = Array.from({ length: n }, () => gauss(R1));
-      const z = (a) => { const mu = a.reduce((s, t) => s + t, 0) / a.length, sd = Math.sqrt(a.reduce((s, t) => s + (t - mu) ** 2, 0) / a.length); return a.map((t) => (t - mu) / sd); };
-      x = z(x); let ez = z(e); const b = ez.reduce((s, t, i) => s + t * x[i], 0) / n; ez = z(ez.map((t, i) => t - b * x[i]));
-      const y = x.map((t, i) => v.r * t + Math.sqrt(1 - v.r * v.r) * ez[i]);
-      const sx = (t) => m + 15 + ((t + 2.6) / 5.2) * (W - m - 40), sy = (t) => H - m - 15 - ((t + 2.6) / 5.2) * (H - m - 40);
-      const pts = x.map((t, i) => `<circle cx="${sx(Math.max(-2.5, Math.min(2.5, t))).toFixed(1)}" cy="${sy(Math.max(-2.5, Math.min(2.5, y[i]))).toFixed(1)}" r="7" fill="#1f6f8b" fill-opacity=".8"/>`).join("");
-      return `<svg viewBox="0 0 ${W} ${H}">${axis}${pts}<text x="${(W + m) / 2}" y="${H - 14}" text-anchor="middle" font-size="18" fill="#333">${esc(v.xlab)} →</text><text x="18" y="${(H - m) / 2}" text-anchor="middle" font-size="18" fill="#333" transform="rotate(-90 18 ${(H - m) / 2})">${esc(v.ylab)} →</text></svg>`;
-    }
-    if (v.kind === "bars") {
-      const span = v.ymax - v.ymin, bw = 110;
-      const sy = (t) => H - m - ((t - v.ymin) / span) * (H - m - 30);
-      let s = axis;
-      for (let t = v.ymin; t <= v.ymax; t++) s += `<text x="${m - 8}" y="${sy(t) + 6}" text-anchor="end" font-size="18" fill="#333">${t}</text><line x1="${m}" x2="${W - 15}" y1="${sy(t)}" y2="${sy(t)}" stroke="#ddd"/>`;
-      v.values.forEach((val, i) => {
-        const x = m + 60 + i * 190;
-        s += `<rect x="${x}" y="${sy(val)}" width="${bw}" height="${H - m - sy(val)}" fill="${i ? "#e4572e" : "#3a86ff"}"/><text x="${x + bw / 2}" y="${H - m + 26}" text-anchor="middle" font-size="20" fill="#333">${esc(v.labels[i])}</text><text x="${x + bw / 2}" y="${sy(val) - 8}" text-anchor="middle" font-size="20" font-weight="700" fill="#333">${val} %</text>`;
-      });
-      return `<svg viewBox="0 0 ${W} ${H}">${s}<text x="16" y="${(H - m) / 2}" text-anchor="middle" font-size="16" fill="#333" transform="rotate(-90 16 ${(H - m) / 2})">${esc(v.ylab)}</text></svg>`;
-    }
-    return "";
   }
 
   /* ---------- Ende ---------- */
@@ -566,7 +558,7 @@
      ========================================================= */
   async function startOnline() {
     await NET.init();
-    const settings = { amode: G.amode, research: G.research, total: G.rounds.length };
+    const settings = { amode: G.amode, research: G.research, auto: !!G.auto };
     G.room = await NET.createRoom(settings, G.crews.map((c) => c.name));
     const base = location.href.replace(/[^/]*(\?.*)?(#.*)?$/, "");
     const url = `${base}play.html?r=${G.room}`;
@@ -578,6 +570,9 @@
     const pref = NET.ref(`rooms/${G.room}/players`);
     const h = pref.on("value", (s) => { G.players = s.val() || {}; renderLobby(); if (G.phase === "question" || G.phase === "bet") { onlineTick(); } });
     G.unsub.push(() => pref.off("value", h));
+    const mref = NET.ref(`rooms/${G.room}/mapPick`);
+    const hm = mref.on("value", (s) => onMapPick(s.val()));
+    G.unsub.push(() => mref.off("value", hm));
     renderLobby();
   }
 
@@ -611,12 +606,16 @@
     roundRefs.push(() => aRef.off("value", ha), () => bRef.off("value", hb), () => jRef.off("child_added", hj), () => jRef.off("child_changed", hj2));
   }
 
+  function allBetsIn() {
+    return G.crews.every((c, i) => { const m = crewMembers(i); return !m.length || m.every(([u]) => G.pBets[u]); }) && Object.keys(G.pBets).length > 0;
+  }
   function aggregateBets() {
     G.crews.forEach((c, i) => {
       const vals = crewMembers(i).map(([u]) => G.pBets[u] && G.pBets[u].bet).filter((v) => v != null).sort((a, b) => a - b);
       if (vals.length) G.bets[i] = Math.min(maxBet(i), vals[Math.floor((vals.length - 1) / 2)]);
       renderCrewbar();
     });
+    if (G.auto && G.phase === "bet" && allBetsIn()) autoNext(1500, () => phaseQuestion());
   }
 
   function crewAnswer(i) {
@@ -667,7 +666,7 @@
     if (G.mode !== "online" || !G.room) return;
     const base = { fuel: G.crews.map((c) => c.fuel) };
     if (extra.brief) return NET.ref(`rooms/${G.room}/state`).set({ ...base, phase: "brief" });
-    if (extra.map) return NET.ref(`rooms/${G.room}/state`).set({ ...base, phase: "map", chooser: extra.chooser, open: extra.open.map((id) => PLANETEN.find((p) => p.id === id).name) });
+    if (extra.map) return NET.ref(`rooms/${G.room}/state`).set({ ...base, phase: "map", chooser: extra.chooser, at: extra.at, open: extra.open.map((id) => ({ id, name: PLANETEN.find((p) => p.id === id).name })) });
     if (extra.end) return NET.ref(`rooms/${G.room}/state`).set({ ...base, phase: "end", ranking: extra.ranking });
     const r = R();
     if (!r) return;

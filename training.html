@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#16303a">
+<title>Mission Methodik · Training</title>
+<link rel="icon" href="assets/kristall.png">
+<style>
+@font-face { font-family: "Sketch"; src: url("assets/CabinSketch-Regular.ttf"); }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; min-height: 100%; background: #16303a url("assets/bg_blau.jpg") center/cover fixed; color: #f4f1e8; font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+.wrap { max-width: 640px; margin: 0 auto; padding: 16px 16px 50px; }
+header { display: flex; justify-content: space-between; align-items: center; font-size: 15px; margin-bottom: 6px; }
+header a { color: #fff; opacity: .85; text-decoration: none; }
+.crew { font-weight: 700; padding: 4px 12px; border-radius: 14px; background: rgba(0,0,0,.35); }
+h1 { font-family: "Sketch", sans-serif; font-weight: 400; font-size: 44px; margin: 6px 0; text-align: center; }
+h2 { font-family: "Sketch", sans-serif; font-weight: 400; font-size: 30px; margin: 6px 0 12px; }
+p { font-size: 17px; line-height: 1.45; }
+.card { background: rgba(0,0,0,.35); border: 2px solid rgba(255,255,255,.5); border-radius: 16px; padding: 16px; margin: 12px 0; }
+.btn { display: block; width: 100%; font: 700 19px "Segoe UI", Arial, sans-serif; color: #fff; background: #1f8f5f; border: 3px solid rgba(255,255,255,.85); border-radius: 14px; padding: 13px; margin: 10px 0; cursor: pointer; text-align: center; }
+.btn.grey { background: #4a5a66; }
+.btn:disabled { opacity: .45; }
+.planet { display: flex; align-items: center; gap: 14px; text-align: left; background: rgba(0,0,0,.3); }
+.planet img { width: 56px; height: 56px; object-fit: contain; flex: none; }
+.planet .pt { flex: 1; }
+.planet small { display: block; font-weight: 400; font-size: 14px; opacity: .85; }
+.planet .best { font-size: 15px; white-space: nowrap; }
+.badge { display: inline-block; font-size: 15px; font-weight: 700; padding: 4px 12px; border-radius: 14px; background: rgba(0,0,0,.4); border: 2px solid rgba(255,255,255,.6); }
+.top { display: flex; justify-content: space-between; align-items: center; margin: 4px 0 10px; }
+.timer { font: 800 22px "Segoe UI", sans-serif; }
+.timer.low { color: #ff8787; }
+.q { font-size: 21px; font-weight: 600; line-height: 1.35; margin: 6px 0 12px; }
+.vis { background: #fff; border-radius: 12px; padding: 6px; margin: 8px 0; }
+.vis svg { width: 100%; height: auto; display: block; }
+.opt { display: flex; gap: 12px; align-items: center; width: 100%; text-align: left; font: 600 17px "Segoe UI", Arial, sans-serif; color: #fff; border: 3px solid rgba(255,255,255,.8); border-radius: 14px; padding: 12px; margin: 9px 0; cursor: pointer; background: rgba(0,0,0,.35); }
+.opt b { flex: none; width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 22px; border: 2px solid #fff; }
+.opt.right { background: rgba(31,143,95,.9); }
+.opt.wrongsel { background: rgba(170,40,40,.85); }
+.opt.dim { opacity: .45; }
+.bets { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.bets .btn { background: #6c5ce7; margin: 0; padding: 16px 0; font-size: 24px; }
+.expl { background: #fff3a8; color: #333; border-radius: 6px; padding: 14px; font-size: 16px; line-height: 1.45; transform: rotate(-.6deg); box-shadow: 0 6px 14px rgba(0,0,0,.35); margin: 12px 0; }
+.expl .ref { display: block; margin-top: 8px; font-size: 13px; color: #666; }
+.big { font-size: 56px; text-align: center; margin: 4px 0; }
+.ok { color: #8ce99a; } .bad { color: #ff8787; }
+.shuttle { display: block; margin: 8px auto; width: 130px; animation: bob 2s ease-in-out infinite; }
+@keyframes bob { 50% { transform: translateY(-6px) rotate(-3deg); } }
+.tabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; }
+.tabs button { flex: none; font: 600 14px "Segoe UI", sans-serif; color: #fff; background: rgba(0,0,0,.35); border: 2px solid rgba(255,255,255,.5); border-radius: 14px; padding: 6px 12px; cursor: pointer; }
+.tabs button.on { background: #1f8f5f; }
+.lb-row { display: grid; grid-template-columns: 28px 1fr 60px; align-items: center; gap: 10px; margin: 10px 0; }
+.lb-rank { font-family: "Sketch", sans-serif; font-size: 26px; text-align: center; }
+.lb-bar { position: relative; height: 40px; background: rgba(255,255,255,.08); border-radius: 10px; overflow: hidden; }
+.lb-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 10px; transition: width 1s; }
+.lb-name { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-weight: 700; font-size: 16px; text-shadow: 0 0 4px #000; white-space: nowrap; }
+.lb-pts { font: 800 20px "Segoe UI", sans-serif; text-align: right; }
+.lb-row.me .lb-bar { outline: 3px solid #fff; }
+.small { font-size: 14px; opacity: .85; }
+.err { color: #ffb3b3; font-weight: 600; }
+.code-in { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.code-in input { width: 100%; font-size: 22px; text-align: center; text-transform: uppercase; padding: 10px; border-radius: 10px; border: 2px solid #fff; background: rgba(255,255,255,.15); color: #fff; }
+.code-in label { font-size: 13px; opacity: .85; display: block; margin-bottom: 4px; }
+.consent-text { max-height: 40vh; overflow: auto; font-size: 15px; line-height: 1.45; background: rgba(0,0,0,.25); border-radius: 10px; padding: 10px 12px; }
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><a href="#" id="h-home">🏠 Mission Methodik · Training</a><span class="crew hidden" id="h-crew"></span></header>
+  <div id="view"></div>
+</div>
+<script src="js/common.js"></script>
+<script src="js/fragen.js"></script>
+<script src="js/firebase-config.js"></script>
+<script src="js/net.js"></script>
+<script src="js/training.js"></script>
+</body>
+</html>

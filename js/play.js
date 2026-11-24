@@ -125,10 +125,22 @@
     }
     if (st.phase === "brief") return render(`<img src="assets/shuttle.png" class="shuttle" alt=""><h1>Briefing</h1><div class="card"><p>Schau auf den Beamer: Dort werden die Spielregeln erklärt.</p></div>`);
     if (st.phase === "map") {
-      const mine = st.chooser === P.crew;
-      return render(`<h1>Sternenkarte</h1><div class="card">${mine ? `<p><b>👑 Ihr wählt das nächste Ziel!</b> Sagt laut an, welchen Planeten ihr anfliegen wollt:</p>` : `<p><b>${esc(P.crews[st.chooser] || "")}</b> wählt das nächste Ziel.</p><p class="small">Noch offen:</p>`}
-        <p>${(st.open || []).map((n) => "🪐 " + esc(n)).join("<br>") || "Alle Planeten erkundet – gleich kommt die Landung!"}</p></div>
-        <div class="card">${P.crews.map((c, i) => `<p style="margin:4px 0">${i === P.crew ? "<b>" : ""}${esc(c)}: ${st.fuel ? st.fuel[i] : 0} Kristalle${i === P.crew ? "</b>" : ""}</p>`).join("")}</div>`);
+      const mine = st.chooser === P.crew, open = st.open || [];
+      let h = `<h1>Sternenkarte</h1><div class="card">`;
+      if (mine && open.length) {
+        h += `<p><b>👑 Ihr führt und wählt das nächste Ziel!</b>${P.settings.amode === "person" ? " Einigt euch – das erste Tippen zählt." : ""}</p>` +
+          open.map((o) => `<button class="btn" data-pick="${esc(o.id)}">🪐 ${esc(o.name)}</button>`).join("");
+      } else {
+        h += `<p><b>${esc(P.crews[st.chooser] || "")}</b> wählt das nächste Ziel.</p><p>${open.map((o) => "🪐 " + esc(o.name)).join("<br>") || "Alle Planeten erkundet – gleich kommt die Landung!"}</p>`;
+      }
+      h += `</div><div class="card">${P.crews.map((c, i) => `<p style="margin:4px 0">${i === P.crew ? "<b>" : ""}${esc(c)}: ${st.fuel ? st.fuel[i] : 0} Kristalle${i === P.crew ? "</b>" : ""}</p>`).join("")}</div>`;
+      render(h);
+      V.querySelectorAll("[data-pick]").forEach((b) => (b.onclick = () => {
+        NET.ref(`rooms/${P.room}/mapPick`).set({ id: b.dataset.pick, crew: P.crew, at: st.at ?? 0, by: NET.uid });
+        V.querySelectorAll("[data-pick]").forEach((x) => (x.disabled = true));
+        b.textContent = "✔ " + b.textContent;
+      }));
+      return;
     }
     if (st.idx !== P.lastIdx) { P.lastIdx = st.idx; P.myAnswer = null; P.shownAt = 0; }
     const top = `<p class="small">Runde ${st.nr || ""}/${st.total} · ${esc(st.planet)}${st.termin ? " · Termin " + st.termin : ""} · ${esc(st.typName)}${st.double ? " · ×2" : ""}</p>`;

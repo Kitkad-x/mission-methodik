@@ -193,4 +193,11 @@ const EREIGNISSE = [
   { id: "schwerelos", name: "Schwerelosigkeit!", text: "Die Crew auf dem letzten Platz bekommt +2 Kristalle Rückenwind.", bild: "assets/astronaut.png" },
 ];
 
-if (typeof module !== "undefined") module.exports = { PLANETEN, FRAGEN, TYPEN, EREIGNISSE };
+
+/* ===== Training & Bestenliste =====
+   Crews, die in der Bestenliste antreten (genau so schreiben wie im Seminar). */
+const TRAINING_CREWS = ["Gruppe 1", "Gruppe 2", "Gruppe 3", "Gruppe 4", "Gruppe 5"];
+/* Forschungsmodus im Training: erst auf true setzen, wenn die Studieninformation geklärt ist. */
+const TRAINING_RESEARCH = false;
+
+if (typeof module !== "undefined") module.exports = { PLANETEN, FRAGEN, TYPEN, EREIGNISSE, TRAINING_CREWS };
