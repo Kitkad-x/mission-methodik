@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gravitas · Mission Methodik</title>
+<link rel="icon" href="assets/kristall.png">
+<link rel="stylesheet" href="css/host.css">
+</head>
+<body>
+<div id="stage">
+
+  <!-- ===== Titel ===== -->
+  <section id="s-title" class="screen bg-title">
+    <div class="title-box">
+      <h1 class="chalk big">Gravitas</h1>
+      <h2 class="chalk">Mission Methodik</h2>
+      <p class="sub">Das Weltraum-Duell zu den Sozialwissenschaftlichen Methoden</p>
+      <button class="btn green" id="btn-start">Start</button>
+    </div>
+    <div class="credits">Grafiken: Christina Busse (aus Gravitas) · Sozialwissenschaftliche Methoden HS26 · PHSG</div>
+  </section>
+
+  <!-- ===== Einstellungen ===== -->
+  <section id="s-setup" class="screen bg-board hidden">
+    <h2 class="chalk head">Missionsplanung</h2>
+    <div class="setup-grid">
+      <div class="panel">
+        <h3>1 · Spielmodus</h3>
+        <label class="radio"><input type="radio" name="mode" value="beamer" checked> <b>Beamer</b> – Crews zeigen Antwortkarten A–D, du klickst die Antworten ein (läuft offline)</label>
+        <label class="radio" id="lbl-online"><input type="radio" name="mode" value="online"> <b>Online</b> – alle antworten auf dem Handy (QR-Code)</label>
+        <div id="online-opts" class="sub-opts hidden">
+          <label class="radio"><input type="radio" name="amode" value="person" checked> jede Person antwortet (Mehrheit der Crew zählt)</label>
+          <label class="radio"><input type="radio" name="amode" value="crew"> ein Handy pro Crew</label>
+          <label class="check"><input type="checkbox" id="opt-research"> Forschungsmodus: Einverständnis abfragen und Antworten pseudonym speichern</label>
+        </div>
+        <p class="hint" id="online-hint"></p>
+        <h3>2 · Crews</h3>
+        <div class="row"><span>Anzahl</span>
+          <button class="btn mini" data-crews="-1">−</button><b id="crew-count">5</b><button class="btn mini" data-crews="1">+</button>
+        </div>
+        <div id="crew-names"></div>
+      </div>
+      <div class="panel">
+        <h3>3 · Planeten (Sitzungen)</h3>
+        <div id="planet-list"></div>
+        <label class="check"><input type="checkbox" id="opt-finale" checked> Finale (alles oder nichts)</label>
+        <label class="check"><input type="checkbox" id="opt-events" checked> Ereignisse (Sonnensturm, Schwerelosigkeit)</label>
+        <label class="check"><input type="checkbox" id="opt-shuffle" checked> Antwortreihenfolge mischen</label>
+        <p class="hint" id="round-info"></p>
+        <button class="btn green wide" id="btn-go">Weiter zum Briefing ▶</button>
+        <button class="btn small ghost btn-help" style="margin-top:14px">? Bedienung für die Spielleitung</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Lobby (online) ===== -->
+  <section id="s-lobby" class="screen bg-board hidden">
+    <h2 class="chalk head">Einsteigen!</h2>
+    <div class="lobby-grid">
+      <div class="panel qr-panel">
+        <div id="qr"></div>
+        <p class="join-url" id="join-url"></p>
+        <p class="room">Raumcode <b id="room-code">····</b></p>
+      </div>
+      <div class="panel">
+        <h3>Crews an Bord</h3>
+        <div id="lobby-crews"></div>
+        <button class="btn green wide" id="btn-lobby-go">Alle an Bord – Briefing starten ▶</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Briefing ===== -->
+  <section id="s-brief" class="screen bg-board hidden">
+    <h2 class="chalk head">Briefing</h2>
+    <div class="brief-card" id="brief-card"></div>
+    <div class="brief-nav">
+      <button class="btn ghost" id="brief-prev">◀ Zurück</button>
+      <div id="brief-dots"></div>
+      <button class="btn green" id="brief-next">Weiter ▶</button>
+    </div>
+    <button class="btn small ghost brief-skip" id="brief-skip">Überspringen</button>
+  </section>
+
+  <!-- ===== Sternenkarte ===== -->
+  <section id="s-map" class="screen bg-title-dark hidden">
+    <h2 class="chalk head">Sternenkarte</h2>
+    <div class="map-leader" id="map-leader"></div>
+    <div id="map-planets"></div>
+    <div class="map-score" id="map-score"></div>
+    <div class="controls">
+      <button class="btn small ghost btn-brief" title="Briefing zeigen">📖</button>
+      <button class="btn small ghost btn-help" title="Bedienung">?</button>
+      <button class="btn small ghost" id="btn-endnow">Spiel beenden</button>
+      <button class="btn green" id="btn-finale">🏁 Finale: Landung</button>
+    </div>
+  </section>
+
+  <!-- ===== Spiel ===== -->
+  <section id="s-game" class="screen bg-board hidden">
+    <div class="topbar">
+      <div class="tb-left"><img id="tb-planet" src="" alt=""><div><div class="tb-termin" id="tb-termin"></div><div class="tb-title" id="tb-title"></div></div></div>
+      <div class="tb-mid"><div id="tb-type" class="type-badge"></div><div id="journey"></div></div>
+      <div class="tb-right"><div id="tb-round"></div><div class="timer" id="timer"><img src="assets/stoppuhr.png" alt=""><span id="timer-s">30</span></div></div>
+    </div>
+
+    <div class="qarea">
+      <div class="qpanel">
+        <div class="duel-banner hidden" id="duel-banner"></div>
+        <div class="qtext" id="qtext"></div>
+        <div class="qbody">
+          <div class="visual hidden" id="visual"></div>
+          <div class="opts" id="opts"></div>
+        </div>
+      </div>
+      <div class="side">
+        <div class="postit hidden" id="postit"><div class="postit-h" id="postit-h"></div><div class="postit-t" id="postit-t"></div></div>
+        <div class="side-info" id="side-info"></div>
+      </div>
+    </div>
+
+    <div class="track" id="track"></div>
+
+    <div class="controls">
+      <button class="btn small ghost btn-help" title="Bedienung">?</button>
+      <button class="btn small ghost" id="btn-sound" title="Ton an/aus">🔊</button>
+      <button class="btn small ghost" id="btn-plus10" title="+10 Sekunden">+10 s</button>
+      <button class="btn small ghost" id="btn-pause" title="Timer anhalten">⏸</button>
+      <button class="btn green" id="btn-next">Weiter ▶</button>
+    </div>
+  </section>
+
+  <!-- ===== Overlays ===== -->
+  <div id="overlay" class="overlay hidden"><div class="ov-card" id="ov-card"></div></div>
+
+  <!-- ===== Ende ===== -->
+  <section id="s-end" class="screen bg-title hidden">
+    <h2 class="chalk head">Mission erfüllt!</h2>
+    <div id="podium"></div>
+    <div class="end-btns">
+      <button class="btn" id="btn-csv">Daten herunterladen (CSV)</button>
+      <button class="btn green" id="btn-again">Neue Mission</button>
+    </div>
+    <canvas id="confetti"></canvas>
+  </section>
+</div>
+
+<script src="js/common.js"></script>
+<script src="js/fragen.js"></script>
+<script src="js/firebase-config.js"></script>
+<script src="js/net.js"></script>
+<script src="js/qrcode.js"></script>
+<script src="js/host.js"></script>
+</body>
+</html>

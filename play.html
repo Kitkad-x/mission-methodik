@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#16303a">
+<title>Mission Methodik · Crew-Funkgerät</title>
+<link rel="icon" href="assets/kristall.png">
+<style>
+@font-face { font-family: "Sketch"; src: url("assets/CabinSketch-Regular.ttf"); }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; min-height: 100%; background: #16303a url("assets/bg_blau.jpg") center/cover fixed; color: #f4f1e8; font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+.wrap { max-width: 520px; margin: 0 auto; padding: 16px 16px 40px; }
+header { display: flex; justify-content: space-between; align-items: center; font-size: 15px; opacity: .9; margin-bottom: 10px; }
+header .crew { font-weight: 700; padding: 4px 12px; border-radius: 14px; background: rgba(0,0,0,.35); }
+h1 { font-family: "Sketch", sans-serif; font-weight: 400; font-size: 42px; margin: 8px 0; text-align: center; }
+h2 { font-family: "Sketch", sans-serif; font-weight: 400; font-size: 30px; margin: 8px 0 12px; }
+p { font-size: 17px; line-height: 1.4; }
+.card { background: rgba(0,0,0,.35); border: 2px solid rgba(255,255,255,.5); border-radius: 16px; padding: 16px; margin: 12px 0; }
+.btn { display: block; width: 100%; font: 700 20px "Segoe UI", Arial, sans-serif; color: #fff; background: #1f8f5f; border: 3px solid rgba(255,255,255,.85); border-radius: 14px; padding: 14px; margin: 10px 0; cursor: pointer; }
+.btn.grey { background: #4a5a66; }
+.btn:disabled { opacity: .45; }
+input[type=text] { width: 100%; font-size: 26px; text-align: center; letter-spacing: 6px; text-transform: uppercase; padding: 12px; border-radius: 12px; border: 2px solid #fff; background: rgba(255,255,255,.15); color: #fff; }
+.code-in { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.code-in input { letter-spacing: 2px; font-size: 22px; }
+.code-in label { font-size: 13px; opacity: .85; display: block; margin-bottom: 4px; }
+.crewbtn { display: flex; align-items: center; gap: 12px; text-align: left; }
+.crewbtn i { width: 22px; height: 22px; border-radius: 50%; border: 2px solid #fff; flex: none; }
+.q { font-size: 20px; font-weight: 600; line-height: 1.35; margin: 6px 0 12px; }
+.opt { display: flex; gap: 12px; align-items: center; width: 100%; text-align: left; font: 600 17px "Segoe UI", Arial, sans-serif; color: #fff; border: 3px solid rgba(255,255,255,.8); border-radius: 14px; padding: 12px; margin: 9px 0; cursor: pointer; background: rgba(0,0,0,.35); }
+.opt b { flex: none; width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 22px; border: 2px solid #fff; }
+.opt.sel { outline: 4px solid #fff; transform: scale(1.02); }
+.opt.right { background: rgba(31,143,95,.9); }
+.opt.wrongsel { background: rgba(170,40,40,.85); }
+.timer { font: 800 22px "Segoe UI", sans-serif; text-align: right; }
+.bets { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.bets .btn { background: #6c5ce7; margin: 0; padding: 16px 0; font-size: 24px; }
+.bets .btn.sel { outline: 4px solid #fff; }
+.jokers { display: flex; gap: 10px; }
+.jokers .btn { background: rgba(0,0,0,.35); font-size: 17px; }
+.jokers .btn.active { background: #f08c00; }
+.big { font-size: 64px; text-align: center; margin: 10px 0; }
+.res-ok { color: #8ce99a; } .res-bad { color: #ff8787; }
+.expl { background: #fff3a8; color: #333; border-radius: 6px; padding: 14px; font-size: 16px; line-height: 1.4; transform: rotate(-.8deg); box-shadow: 0 6px 14px rgba(0,0,0,.35); }
+.small { font-size: 14px; opacity: .85; }
+.hidden { display: none !important; }
+.shuttle { display: block; margin: 10px auto; width: 140px; animation: bob 2s ease-in-out infinite; }
+@keyframes bob { 50% { transform: translateY(-6px) rotate(-3deg); } }
+.err { color: #ffb3b3; font-weight: 600; }
+.consent-text { max-height: 46vh; overflow: auto; font-size: 15px; line-height: 1.45; background: rgba(0,0,0,.25); border-radius: 10px; padding: 10px 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><span id="h-room">Mission Methodik</span><span class="crew hidden" id="h-crew"></span></header>
+  <div id="view"></div>
+</div>
+<script src="js/common.js"></script>
+<script src="js/firebase-config.js"></script>
+<script src="js/net.js"></script>
+<script src="js/play.js"></script>
+</body>
+</html>
